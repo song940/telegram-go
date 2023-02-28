@@ -3,7 +3,7 @@ package cli
 import (
 	"log"
 
-	"github.com/song940/telegram/telegram"
+	"github.com/song940/telegram-go/telegram"
 )
 
 func Run() {

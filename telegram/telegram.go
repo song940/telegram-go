@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 )
 
@@ -41,19 +39,32 @@ type User struct {
 }
 
 type Message struct {
-	ChatId                string `json:"chat_id"`
-	MessageThreadId       string `json:"message_thread_id,omitempty"`
-	Text                  string `json:"text"`
-	ParseMode             string `json:"parse_mode,omitempty"`
-	Entities              string `json:"entities,omitempty"`
-	DisableWebPageView    bool   `json:"disable_web_page_preview,omitempty"`
-	DisableNotification   bool   `json:"disable_notification,omitempty"`
-	ProtectContent        bool   `json:"protect_content,omitempty"`
-	ReplyToMessageId      int    `json:"reply_to_message_id,omitempty"`
-	AllowSendingWithReply bool   `json:"allow_sending_with_reply,omitempty"`
+	ChatId                string           `json:"chat_id"`
+	MessageThreadId       string           `json:"message_thread_id,omitempty"`
+	Text                  string           `json:"text"`
+	ParseMode             string           `json:"parse_mode,omitempty"`
+	Entities              []*MessageEntity `json:"entities,omitempty"`
+	DisableWebPageView    bool             `json:"disable_web_page_preview,omitempty"`
+	DisableNotification   bool             `json:"disable_notification,omitempty"`
+	ProtectContent        bool             `json:"protect_content,omitempty"`
+	ReplyToMessageId      int              `json:"reply_to_message_id,omitempty"`
+	AllowSendingWithReply bool             `json:"allow_sending_with_reply,omitempty"`
+}
+
+type MessageEntity struct {
+	Type   string `json:"type"`
+	Offset int    `json:"offset"`
+	Length int    `json:"length"`
+	URL    string `json:"url,omitempty"`
+	User   *User  `json:"user,omitempty"`
 }
 
 type Update struct {
+	UpdateId          int      `json:"update_id"`
+	Message           *Message `json:"message,omitempty"`
+	EditedMessage     *Message `json:"edited_message,omitempty"`
+	ChannelPost       *Message `json:"channel_post,omitempty"`
+	EditedChannelPost *Message `json:"edited_channel_post,omitempty"`
 }
 
 func NewBot(config *TelegramBotConfig) (bot *TelegramBot) {
@@ -76,9 +87,8 @@ func (bot *TelegramBot) Call(method string, params any) (result json.RawMessage,
 	if err != nil {
 		return
 	}
-	data, _ := io.ReadAll(res.Body)
 	var out TelegramBotResponse
-	err = json.Unmarshal(data, &out)
+	json.NewDecoder(res.Body).Decode(&out)
 	result = out.Result
 	if !out.Ok {
 		return nil, fmt.Errorf("error: %d %s", out.Code, out.Description)
@@ -97,14 +107,26 @@ func (bot *TelegramBot) GetMe() (user User, err error) {
 	return
 }
 
-// SendMessage
+// SendMessage sends a text message to the specified chat.
 // https://core.telegram.org/bots/api#sendmessage
-func (bot *TelegramBot) SendMessage(message Message) {
+func (bot *TelegramBot) SendMessage(message Message) (err error) {
 	data, err := bot.Call("/sendMessage", message)
 	if err != nil {
 		return
 	}
-	log.Println(data)
+	err = json.Unmarshal(data, &message)
+	return
+}
+
+// AnswerCallbackQuery sends an answer to a callback query.
+// https://core.telegram.org/bots/api#answercallbackquery
+func (bot *TelegramBot) AnswerCallbackQuery(callbackQueryId string, text string) error {
+	params := map[string]interface{}{
+		"callback_query_id": callbackQueryId,
+		"text":              text,
+	}
+	_, err := bot.Call("/answerCallbackQuery", params)
+	return err
 }
 
 // GetUpdates

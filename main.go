@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/song940/telegram/cli"
+	"github.com/song940/telegram-go/cli"
 )
 
 func main() {
